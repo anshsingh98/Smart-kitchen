@@ -275,298 +275,286 @@
 
     <script>
         const BACKEND_URL = "https://smart-kitchen-backend-1v38.onrender.com";
-        let state = { products: [], orders: [] };
+let state = { products: [], orders: [] };
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const token = localStorage.getItem("admin_token");
-            if (token) {
-                showDashboardMainboard();
-            }
+window.addEventListener('DOMContentLoaded', () => {
+    const token = localStorage.getItem("admin_token");
+    if (token) {
+        showDashboardMainboard();
+    }
+});
+
+async function handleAdminLoginAction(e) {
+    e.preventDefault();
+    const user = document.getElementById("login-user").value.trim();
+    const pass = document.getElementById("login-pass").value.trim();
+
+    const fd = new FormData();
+    fd.append("username", user);
+    fd.append("password", pass);
+
+    try {
+        const res = await fetch(`${BACKEND_URL}/admin/login`, {
+            method: "POST",
+            body: fd
+        });
+        if (res.ok) {
+            const data = await res.json();
+            localStorage.setItem("admin_token", data.access_token);
+            showDashboardMainboard();
+        } else {
+            alert("Invalid Admin credentials!");
+        }
+    } catch (err) {
+        alert("Server Connection Issue.");
+    }
+}
+
+function handleAdminLogoutAction() {
+    localStorage.removeItem("admin_token");
+    document.getElementById("login-overlay").style.display = 'flex';
+    document.getElementById("admin-mainboard").style.display = 'none';
+}
+
+async function showDashboardMainboard() {
+    document.getElementById("login-overlay").style.display = 'none';
+    document.getElementById("admin-mainboard").style.display = 'block';
+    await loadGlobalUPISettings();
+    await loadAdminProductsCatalog();
+    await loadAdminOrdersList();
+}
+
+async function loadGlobalUPISettings() {
+    try {
+        const res = await fetch(`${BACKEND_URL}/settings`);
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById("moms-upi-input").value = data.upi_id || "";
+        }
+    } catch (err) {
+        console.log("UPI configurations empty or failed fetching.");
+    }
+}
+
+async function saveGlobalUPISettings() {
+    const upiId = document.getElementById("moms-upi-input").value.trim();
+    if(!upiId) return alert("Please type a valid UPI ID!");
+
+    const token = localStorage.getItem("admin_token");
+    try {
+        const res = await fetch(`${BACKEND_URL}/settings`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ upi_id: upiId, store_name: "Smart Kitchen", online_payment_enabled: true })
+        });
+        if (res.ok) {
+            alert("✓ Mummy's UPI ID updated successfully!");
+        } else {
+            alert("Failed to update configurations.");
+        }
+    } catch (err) {
+        alert("Server communication failed.");
+    }
+}
+
+async function loadAdminProductsCatalog() {
+    try {
+        const res = await fetch(`${BACKEND_URL}/products`);
+        if (res.ok) {
+            state.products = await res.json();
+            renderAdminProductsCatalog();
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function renderAdminProductsCatalog() {
+    const list = document.getElementById("catalog-products-list");
+    list.innerHTML = state.products.map(p => `
+        <div class="item-row">
+            <div class="item-info">
+                <h5>${p.name}</h5>
+                <p>Category: ${p.category.toUpperCase()} | Price: <strong>₹${p.price}</strong> | Disc: <strong>₹${p.online_discount || 0}</strong></p>
+                <p>Stock: ${p.stock}</p>
+            </div>
+            <div style="display:flex; gap:6px;">
+                <button class="btn" style="padding:6px 10px; font-size:0.8rem;" onclick="triggerEditProductForm('${p.id}')"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
+                <button class="btn btn-danger" style="padding:6px 10px; font-size:0.8rem;" onclick="triggerDeleteProductAPI('${p.id}')"><i class="fa-solid fa-trash-can"></i> Del</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function handleProductSubmitAction(e) {
+    e.preventDefault();
+    const prodId = document.getElementById("prod-id").value.trim() || "SK-" + Math.floor(100000 + Math.random() * 900000);
+    const payload = {
+        id: prodId,
+        name: document.getElementById("prod-name").value.trim(),
+        description: document.getElementById("prod-desc").value.trim(),
+        category: document.getElementById("prod-cat").value.trim().toLowerCase(),
+        price: parseFloat(document.getElementById("prod-price").value),
+        compare_price: parseFloat(document.getElementById("prod-compare").value) || 0,
+        online_discount: parseFloat(document.getElementById("prod-online-discount").value) || 0,
+        stock: parseInt(document.getElementById("prod-stock").value),
+        featured: true,
+        rating: 5.0,
+        image_url: document.getElementById("prod-img").value.trim(),
+        created_at: new Date().toISOString()
+    };
+
+    const token = localStorage.getItem("admin_token");
+    const isEdit = document.getElementById("prod-id").value.trim() !== "";
+
+    try {
+        const url = isEdit ? `${BACKEND_URL}/product/${prodId}` : `${BACKEND_URL}/product`;
+        const method = isEdit ? "PUT" : "POST";
+
+        const res = await fetch(url, {
+            method: method,
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
         });
 
-        async function handleAdminLoginAction(e) {
-            e.preventDefault();
-            const user = document.getElementById("login-user").value.trim();
-            const pass = document.getElementById("login-pass").value.trim();
-
-            const fd = new FormData();
-            fd.append("username", user);
-            fd.append("password", pass);
-
-            try {
-                const res = await fetch(`${BACKEND_URL}/admin/login`, {
-                    method: "POST",
-                    body: fd
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    localStorage.setItem("admin_token", data.access_token);
-                    showDashboardMainboard();
-                } else {
-                    alert("Invalid Admin credentials!");
-                }
-            } catch (err) {
-                alert("Server Connection Issue.");
-            }
-        }
-
-        function handleAdminLogoutAction() {
-            localStorage.removeItem("admin_token");
-            document.getElementById("login-overlay").style.display = 'flex';
-            document.getElementById("admin-mainboard").style.display = 'none';
-        }
-
-        async function showDashboardMainboard() {
-            document.getElementById("login-overlay").style.display = 'none';
-            document.getElementById("admin-mainboard").style.display = 'block';
-            await loadGlobalUPISettings();
+        if (res.ok) {
+            alert("✓ Product saved successfully!");
+            resetProductForm();
             await loadAdminProductsCatalog();
+        }
+    } catch (err) {
+        alert("Server Error.");
+    }
+}
+
+function triggerEditProductForm(id) {
+    const p = state.products.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById("form-heading").innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Edit Product Catalog`;
+    document.getElementById("prod-id").value = p.id;
+    document.getElementById("prod-name").value = p.name;
+    document.getElementById("prod-desc").value = p.description;
+    document.getElementById("prod-price").value = p.price;
+    document.getElementById("prod-compare").value = p.compare_price;
+    document.getElementById("prod-online-discount").value = p.online_discount || 0;
+    document.getElementById("prod-stock").value = p.stock;
+    document.getElementById("prod-cat").value = p.category;
+    document.getElementById("prod-img").value = p.image_url;
+}
+
+async function triggerDeleteProductAPI(id) {
+    if(!confirm("Delete this product?")) return;
+    const token = localStorage.getItem("admin_token");
+    try {
+        const res = await fetch(`${BACKEND_URL}/product/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+            alert("✓ Product removed.");
+            await loadAdminProductsCatalog();
+        }
+    } catch (err) {
+        alert("Failed to delete product.");
+    }
+}
+
+function resetProductForm() {
+    document.getElementById("form-heading").innerHTML = `<i class="fa-solid fa-plus"></i> Add Product to Catalog`;
+    document.getElementById("product-form").reset();
+    document.getElementById("prod-id").value = "";
+}
+
+async function loadAdminOrdersList() {
+    const token = localStorage.getItem("admin_token");
+    try {
+        const res = await fetch(`${BACKEND_URL}/orders`, {
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+            state.orders = await res.json();
+            renderAdminOrdersList();
+        }
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+function renderAdminOrdersList() {
+    const tbody = document.getElementById("orders-list-rows");
+    if (!state.orders || state.orders.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="padding:16px; text-align:center; color:var(--text-secondary);">No orders received yet.</td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = state.orders.map(o => {
+        let badgeClass = "status-pending";
+        if(o.payment_status === "Paid") badgeClass = "status-paid";
+        if(o.payment_status === "Paid (Pending Verification)") badgeClass = "status-verification";
+
+        return `
+            <tr style="border-bottom:1px solid var(--border-color);">
+                <td style="padding:10px; font-weight:700;">${o.order_id}</td>
+                <td>${o.customer_name}</td>
+                <td>${o.phone}</td>
+                <td style="font-weight:700;">${o.payment_method}</td>
+                <td style="font-weight:800; color:var(--primary);">₹${o.total}</td>
+                <td><span class="status-badge ${badgeClass}">${o.payment_status}</span></td>
+                <td>
+                    <div style="display:flex; gap:4px;">
+                        ${o.payment_status !== "Paid" ? `<button class="btn" style="padding:6px 10px; font-size:0.75rem;" onclick="markOrderAsPaidAction('${o.order_id}')">Approve</button>` : ''}
+                        <button class="btn btn-danger" style="padding:6px 10px; font-size:0.75rem;" onclick="deleteOrderAPIAction('${o.order_id}')">Remove</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// BUG FIXED: Dynamic headers payload auth fix
+async function markOrderAsPaidAction(id) {
+    if(!confirm("Confirm payment in Mummy's account?")) return;
+    const token = localStorage.getItem("admin_token");
+    try {
+        const res = await fetch(`${BACKEND_URL}/order/${id}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({ payment_status: "Paid", order_status: "Shipped" })
+        });
+        if (res.ok) {
+            alert("✓ Payment approved & order status updated to Shipped!");
             await loadAdminOrdersList();
         }
+    } catch (err) {
+        alert("Failed to update status.");
+    }
+}
 
-        // SETTINGS LOAD & SAVE METHODS
-        async function loadGlobalUPISettings() {
-            try {
-                const res = await fetch(`${BACKEND_URL}/settings`);
-                if (res.ok) {
-                    const data = await res.json();
-                    document.getElementById("moms-upi-input").value = data.upi_id;
-                }
-            } catch (err) {
-                console.error("Failed to load global settings configurations.");
-            }
+// BUG FIXED: Complete core authorization mapping fixed
+async function deleteOrderAPIAction(id) {
+    if(!confirm("Permanently remove this order?")) return;
+    const token = localStorage.getItem("admin_token");
+    try {
+        const res = await fetch(`${BACKEND_URL}/order/${id}`, {
+            method: "DELETE",
+            headers: { "Authorization": `Bearer ${token}` }
+        });
+        if (res.ok) {
+            alert("✓ Order removed from history.");
+            await loadAdminOrdersList();
         }
-
-        async function saveGlobalUPISettings() {
-            const upiId = document.getElementById("moms-upi-input").value.trim();
-            if(!upiId) return alert("Please type a valid UPI ID!");
-
-            const token = localStorage.getItem("admin_token");
-            try {
-                const res = await fetch(`${BACKEND_URL}/settings`, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ upi_id: upiId, store_name: "Smart Kitchen", online_payment_enabled: true })
-                });
-                if (res.ok) {
-                    alert("✓ Global Payment Settings (UPI) updated successfully!");
-                } else {
-                    alert("Failed to update configurations. Please check session.");
-                }
-            } catch (err) {
-                alert("Server communication failed.");
-            }
-        }
-
-        async function loadAdminProductsCatalog() {
-            try {
-                const res = await fetch(`${BACKEND_URL}/products`);
-                if (res.ok) {
-                    state.products = await res.json();
-                    renderAdminProductsCatalog();
-                }
-            } catch (err) {
-                console.error("Failure updating products layout context.");
-            }
-        }
-
-        function renderAdminProductsCatalog() {
-            const list = document.getElementById("catalog-products-list");
-            list.innerHTML = state.products.map(p => `
-                <div class="item-row">
-                    <div class="item-info">
-                        <h5>${p.name}</h5>
-                        <p>Category: ${p.category.toUpperCase()} | Price: <strong>₹${p.price}</strong> | Disc: <strong>₹${p.online_discount || 0}</strong></p>
-                        <p>Stock: ${p.stock}</p>
-                    </div>
-                    <div style="display:flex; gap:6px;">
-                        <button class="btn" style="padding:6px 10px; font-size:0.8rem;" onclick="triggerEditProductForm('${p.id}')"><i class="fa-solid fa-pen-to-square"></i> Edit</button>
-                        <button class="btn btn-danger" style="padding:6px 10px; font-size:0.8rem;" onclick="triggerDeleteProductAPI('${p.id}')"><i class="fa-solid fa-trash-can"></i> Del</button>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        async function handleProductSubmitAction(e) {
-            e.preventDefault();
-            
-            const prodId = document.getElementById("prod-id").value.trim() || "SK-" + Math.floor(100000 + Math.random() * 900000);
-            const name = document.getElementById("prod-name").value.trim();
-            const desc = document.getElementById("prod-desc").value.trim();
-            const price = parseFloat(document.getElementById("prod-price").value);
-            const compare = parseFloat(document.getElementById("prod-compare").value) || 0;
-            const online_discount = parseFloat(document.getElementById("prod-online-discount").value) || 0;
-            const stock = parseInt(document.getElementById("prod-stock").value);
-            const cat = document.getElementById("prod-cat").value.trim().toLowerCase();
-            const img = document.getElementById("prod-img").value.trim();
-
-            const payload = {
-                id: prodId,
-                name: name,
-                description: desc,
-                category: cat,
-                price: price,
-                compare_price: compare,
-                online_discount: online_discount,
-                stock: stock,
-                featured: true,
-                rating: 5.0,
-                image_url: img,
-                created_at: new Date().toISOString()
-            };
-
-            const token = localStorage.getItem("admin_token");
-            const isEdit = document.getElementById("prod-id").value.trim() !== "";
-
-            try {
-                const url = isEdit ? `${BACKEND_URL}/product/${prodId}` : `${BACKEND_URL}/product`;
-                const method = isEdit ? "PUT" : "POST";
-
-                const res = await fetch(url, {
-                    method: method,
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify(payload)
-                });
-
-                if (res.ok) {
-                    alert("✓ Product catalog entry saved successfully!");
-                    resetProductForm();
-                    await loadAdminProductsCatalog();
-                } else {
-                    alert("Save operation failed. Please check validation rules.");
-                }
-            } catch (err) {
-                alert("Server Connection Issue.");
-            }
-        }
-
-        function triggerEditProductForm(id) {
-            const p = state.products.find(x => x.id === id);
-            if (!p) return;
-
-            document.getElementById("form-heading").innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Edit Product Catalog`;
-            document.getElementById("prod-id").value = p.id;
-            document.getElementById("prod-name").value = p.name;
-            document.getElementById("prod-desc").value = p.description;
-            document.getElementById("prod-price").value = p.price;
-            document.getElementById("prod-compare").value = p.compare_price;
-            document.getElementById("prod-online-discount").value = p.online_discount || 0;
-            document.getElementById("prod-stock").value = p.stock;
-            document.getElementById("prod-cat").value = p.category;
-            document.getElementById("prod-img").value = p.image_url;
-        }
-
-        async function triggerDeleteProductAPI(id) {
-            if(!confirm("Are you sure you want to delete this product?")) return;
-            const token = localStorage.getItem("admin_token");
-            try {
-                const res = await fetch(`${BACKEND_URL}/product/${id}`, {
-                    method: "DELETE",
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    alert("✓ Product entry removed.");
-                    await loadAdminProductsCatalog();
-                }
-            } catch (err) {
-                alert("Server communication failure.");
-            }
-        }
-
-        function resetProductForm() {
-            document.getElementById("form-heading").innerHTML = `<i class="fa-solid fa-plus"></i> Add Product to Catalog`;
-            document.getElementById("product-form").reset();
-            document.getElementById("prod-id").value = "";
-        }
-
-        async function loadAdminOrdersList() {
-            const token = localStorage.getItem("admin_token");
-            try {
-                const res = await fetch(`${BACKEND_URL}/orders`, {
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    state.orders = await res.json();
-                    renderAdminOrdersList();
-                }
-            } catch (err) {
-                console.error("Error updating admin order queues.");
-            }
-        }
-
-        function renderAdminOrdersList() {
-            const tbody = document.getElementById("orders-list-rows");
-            if (state.orders.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" style="padding:16px; text-align:center; color:var(--text-secondary);">No orders received yet.</td></tr>`;
-                return;
-            }
-
-            tbody.innerHTML = state.orders.map(o => {
-                let badgeClass = "status-pending";
-                if(o.payment_status === "Paid") badgeClass = "status-paid";
-                if(o.payment_status === "Paid (Pending Verification)") badgeClass = "status-verification";
-
-                return `
-                    <tr style="border-bottom:1px solid var(--border-color);">
-                        <td style="padding:10px; font-weight:700;">${o.order_id}</td>
-                        <td>${o.customer_name}</td>
-                        <td>${o.phone}</td>
-                        <td style="font-weight:700;">${o.payment_method}</td>
-                        <td style="font-weight:800; color:var(--primary);">₹${o.total}</td>
-                        <td><span class="status-badge ${badgeClass}">${o.payment_status}</span></td>
-                        <td>
-                            <div style="display:flex; gap:4px;">
-                                ${o.payment_status !== "Paid" ? `<button class="btn" style="padding:6px 10px; font-size:0.75rem;" onclick="markOrderAsPaidAction('${o.order_id}')">Approve Payment</button>` : ''}
-                                <button class="btn btn-danger" style="padding:6px 10px; font-size:0.75rem;" onclick="deleteOrderAPIAction('${o.order_id}')"><i class="fa-solid fa-trash-can"></i> Remove</button>
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        async function markOrderAsPaidAction(id) {
-            if(!confirm("Have you checked and confirmed the payment in Mummy's account?")) return;
-            const token = localStorage.getItem("admin_token");
-            try {
-                const res = await fetch(`${BACKEND_URL}/order/${id}`, {
-                    method: "PUT",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ payment_status: "Paid", order_status: "Shipped" })
-                });
-                if (res.ok) {
-                    alert("✓ Payment approved! Order updated to Paid and status set to Shipped.");
-                    await loadAdminOrdersList();
-                }
-            } catch (err) {
-                alert("Failed to update status.");
-            }
-        }
-
-        async function deleteOrderAPIAction(id) {
-            if(!confirm("Are you sure you want to delete this order?")) return;
-            const token = localStorage.get.Item("admin_token");
-            try {
-                const res = await fetch(`${BACKEND_URL}/order/${id}`, {
-                    method: "DELETE",
-                    headers: { "Authorization": `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    alert("✓ Order removed from queue.");
-                    await loadAdminOrdersList();
-                }
-            } catch (err) {
-                alert("Failed to delete order.");
-            }
+    } catch (err) {
+        alert("Failed to delete order.");
+    }
         }
     </script>
 </body>
