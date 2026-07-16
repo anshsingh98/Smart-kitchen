@@ -1080,23 +1080,25 @@
 
         // ZERO FRICTION - NO UTR / TRANSACTION REFS SCREEN GENERATOR
         function launchQRCheckoutPopup(amount) {
-            document.getElementById('checkout-form').style.display = 'none';
-            document.getElementById('checkout-pricing-card').style.display = 'none';
-            
-            const qrWindow = document.getElementById('qr-payment-window');
-            qrWindow.style.display = 'block';
+    document.getElementById('checkout-form').style.display = 'none';
+    document.getElementById('checkout-pricing-card').style.display = 'none';
+    
+    const qrWindow = document.getElementById('qr-payment-window');
+    qrWindow.style.display = 'block';
 
-            document.getElementById('qr-price-tag').innerText = `₹${amount}`;
+    document.getElementById('qr-price-tag').innerText = `₹${amount}`;
 
-            // Create valid Deep-Link specs format parameters
-            const upiUrl = `upi://pay?pa=${state.upi_id}&pn=Smart%20Kitchen&am=${amount}&cu=INR`;
-            
-            // Generate zero cost dynamically generated QR image using Google standard Charting API calls
-            const qrApiUrl = `https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encodeURIComponent(upiUrl)}`;
+    // Standard Clean Indian UPI String Format Setup (Bina kisi extra spacing ke)
+    const cleanUpiId = state.upi_id.trim();
+    const upiUrl = `upi://pay?pa=${cleanUpiId}&pn=SmartKitchen&am=${amount}&cu=INR`;
+    
+    // Updated & 100% working open-source QR code string engine mapping
+    const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUrl)}`;
 
-            document.getElementById('upi-qr-image').src = qrApiUrl;
-            document.getElementById('direct-upi-deeplink-btn').href = upiUrl;
+    document.getElementById('upi-qr-image').src = qrApiUrl;
+    document.getElementById('direct-upi-deeplink-btn').href = upiUrl;
         }
+        
 
         function submitOnlineQRConfirmAction() {
             if(state.active_checkout_payload) {
