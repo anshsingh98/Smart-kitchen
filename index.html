@@ -12,34 +12,13 @@
     <meta property="og:title" content="Smart Kitchen | Kitchen Tools Store">
     <meta property="og:description" content="Upgrade your kitchen with easy-to-use tools.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://smartkitchen.example.com">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Store",
-      "name": "Smart Kitchen",
-      "description": "Kitchen tools store.",
-      "url": "https://smartkitchen.example.com",
-      "telephone": "+919876543210",
-      "priceRange": "₹",
-      "address": {
-        "@type": "PostalAddress",
-        "addressLocality": "Mumbai",
-        "addressRegion": "MH",
-        "postalCode": "400001",
-        "addressCountry": "IN"
-      }
-    }
-    </script>
-
     <style>
-        /* CSS STYLES */
         :root {
             --bg-primary: #ffffff;
             --bg-secondary: #f8f9fa;
@@ -143,7 +122,6 @@
             text-align: center;
             letter-spacing: -0.5px;
         }
-
         .section-title span { color: var(--primary); }
 
         #loader {
@@ -198,7 +176,6 @@
             position: relative;
             display: none;
         }
-
         @media(min-width: 768px) { .nav-search { display: block; } }
 
         .nav-search input {
@@ -245,7 +222,6 @@
             border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-top: 8px;
             box-shadow: var(--shadow-md); max-height: 300px; overflow-y: auto; display: none; z-index: 1010;
         }
-        .suggestion-item { padding: 14px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; }
 
         .view-section { display: none; padding: 24px 0; animation: fadeIn 0.4s ease forwards; }
         .view-section.active { display: block; }
@@ -356,6 +332,9 @@
 
         .back-to-top { position: fixed; bottom: 16px; left: 16px; width: 48px; height: 48px; border-radius: 50%; background: var(--primary); color: white; display: flex; align-items: center; justify-content: center; border: none; cursor: pointer; opacity: 0; z-index: 999; box-shadow: var(--shadow-md); transition: opacity 0.3s; }
         .back-to-top.show { opacity: 1; }
+
+        #toast-container { position: fixed; bottom: 24px; right: 24px; z-index: 3000; }
+        .toast { background: #1a1d20; color: #fff; padding: 12px 24px; border-radius: var(--radius-sm); font-weight: 600; margin-top: 8px; display: flex; align-items: center; gap: 8px; box-shadow: var(--shadow-md); }
     </style>
 </head>
 <body>
@@ -462,10 +441,10 @@
                     </div>
                     <div class="filter-group">
                         <h4>Max Price (₹)</h4>
-                        <input type="range" id="filter-price-range" min="100" max="1000" step="50" value="1000" oninput="updatePriceRangeLabel(this.value); applyFilters();">
+                        <input type="range" id="filter-price-range" min="100" max="2500" step="50" value="2500" oninput="updatePriceRangeLabel(this.value); applyFilters();">
                         <div style="display:flex; justify-content:space-between; margin-top:4px; font-size:0.85rem;">
                             <span>₹100</span>
-                            <span id="price-range-label" style="font-weight:700; color:var(--primary);">₹1000</span>
+                            <span id="price-range-label" style="font-weight:700; color:var(--primary);">₹2500</span>
                         </div>
                     </div>
                     <button class="btn btn-secondary" style="width:100%;" onclick="resetFilters()">Clear Filters</button>
@@ -500,9 +479,9 @@
 
     <section id="view-checkout" class="view-section">
         <div class="container">
-            <h2 class="section-title">Delivery <span>Details</span></h2>
-            <div class="checkout-layout">
-                <form id="checkout-form" onsubmit="processCheckoutOrder(event)">
+            <h2 class="section-title">Delivery & <span>Payment</span></h2>
+            <div class="checkout-layout" id="checkout-root-layout">
+                <form id="checkout-form" onsubmit="handleFormSubmission(event)">
                     <div class="form-grid">
                         <div class="form-group">
                             <label>Full Name *</label>
@@ -532,15 +511,46 @@
                             <label>PIN Code *</label>
                             <input type="text" id="bill-pin" pattern="[0-9]{6}" placeholder="6 digits" required>
                         </div>
+                        <div class="form-group">
+                            <label>Payment Method *</label>
+                            <select id="bill-payment" onchange="renderCheckoutBreakdown()" required>
+                                <option value="COD">Cash on Delivery (COD)</option>
+                                <option value="ONLINE_QR">Pay Online (Instant UPI Discount! ⚡)</option>
+                            </select>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-primary" style="margin-top:24px; width:100%;">Place Order (Cash on Delivery) <i class="fa-solid fa-lock"></i></button>
+                    <button type="submit" class="btn btn-primary" style="margin-top:24px; width:100%;" id="place-order-submit-btn">Place Order <i class="fa-solid fa-lock"></i></button>
                 </form>
-                <div class="summary-card">
+                <div class="summary-card" id="checkout-pricing-card">
                     <h3>Items List</h3>
                     <hr style="margin:12px 0; border:none; border-top:1px solid var(--border-color);">
                     <div id="checkout-breakdown-items"></div>
+                    <div class="summary-row" id="online-discount-row" style="color:var(--primary); font-weight:700; display:none;">
+                        <span>Online Payment Discount</span><span id="checkout-online-discount">₹0</span>
+                    </div>
                     <div class="summary-row total" style="margin-top:16px;"><span>Final Total</span><span id="checkout-grandtotal">₹0</span></div>
                 </div>
+            </div>
+            
+            <div id="qr-payment-window" style="display:none; max-width:550px; margin: 40px auto; background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-md); padding:24px; box-shadow:var(--shadow-md); text-align:center;">
+                <h3 style="color:var(--primary); font-weight:800; margin-bottom:8px;">⚡ Quick Instant Pay</h3>
+                <p style="color:var(--text-secondary); font-size:0.95rem; margin-bottom:16px;">Scan the QR code to pay <strong id="qr-price-tag" style="color:var(--primary); font-size:1.3rem;">₹0</strong> directly, or tap the button to open mobile apps.</p>
+                
+                <div style="background:#ffffff; padding:12px; border-radius:var(--radius-sm); display:inline-block; border:1px solid var(--border-color); margin-bottom:16px;">
+                    <img id="upi-qr-image" src="" alt="UPI Scan QR" style="width:220px; height:220px; display:block;">
+                </div>
+
+                <div style="margin-bottom:20px;">
+                    <a id="direct-upi-deeplink-btn" href="" style="display:block; text-decoration:none; background:var(--primary); color:#ffffff; font-weight:700; padding:12px; border-radius:var(--radius-sm); font-size:0.95rem; box-shadow:var(--shadow-sm);">
+                        🚀 Open UPI Apps (GPay/PhonePe/Paytm)
+                    </a>
+                </div>
+
+                <hr style="margin:20px 0; border:none; border-top:1px solid var(--border-color);">
+                <button onclick="submitOnlineQRConfirmAction()" id="complete-online-btn" class="btn btn-primary" style="width:100%; background:#fcc419; color:#000;">
+                    Complete & Confirm Order
+                </button>
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:8px;">✓ Click once payment is processed inside your bank application.</p>
             </div>
         </div>
     </section>
@@ -600,14 +610,15 @@
     <button class="back-to-top" id="backToTopBtn" onclick="scrollToTop()" title="Back to Top"><i class="fa-solid fa-arrow-up"></i></button>
 
     <script>
-        // Updated backend URL variable mapping directly onto your real Hugging Face live workspace engine subdomain channel
         const BACKEND_URL = "https://smart-kitchen-backend-1v38.onrender.com";
 
         let state = {
             products: [],
             cart: JSON.parse(localStorage.getItem("sk_cart")) || [],
             wishlist: JSON.parse(localStorage.getItem("sk_wishlist")) || [],
-            filters: { category: 'all', sort: 'default', maxPrice: 1000 }
+            filters: { category: 'all', sort: 'default', maxPrice: 2500 },
+            upi_id: "moms_upi_id@okaxis", // Fallback UPI id
+            active_checkout_payload: null
         };
 
         class VanillaRouter {
@@ -634,6 +645,7 @@
 
         window.addEventListener('DOMContentLoaded', async () => {
             await fetchProducts();
+            await fetchGlobalUPISettings();
             setTimeout(() => {
                 const ldr = document.getElementById('loader');
                 if(ldr) {
@@ -660,6 +672,18 @@
                 }
             } catch (err) {
                 console.error("Error loading product catalog matrix data setup:", err);
+            }
+        }
+
+        async function fetchGlobalUPISettings() {
+            try {
+                const res = await fetch(`${BACKEND_URL}/settings`);
+                if (res.ok) {
+                    const data = await res.json();
+                    state.upi_id = data.upi_id;
+                }
+            } catch (err) {
+                console.error("Error fetching admin upi details", err);
             }
         }
 
@@ -818,8 +842,8 @@
             document.getElementById('mobile-search-input').value = '';
             document.getElementById('filter-category').value = 'all';
             document.getElementById('sort-products').value = 'default';
-            document.getElementById('filter-price-range').value = 1000;
-            updatePriceRangeLabel(1000);
+            document.getElementById('filter-price-range').value = 2500;
+            updatePriceRangeLabel(2500);
             applyFilters();
         }
 
@@ -955,31 +979,69 @@
             document.getElementById('cart-grandtotal').innerText = `₹${subtotal}`;
         }
 
+        // DISCOUNTS BREAKDOWN CALCULATOR LOGIC
+        function renderCheckoutBreakdown() {
+            const isOnline = document.getElementById('bill-payment').value === "ONLINE_QR";
+            const container = document.getElementById('checkout-breakdown-items');
+            
+            let subtotal = 0;
+            let totalOnlineDiscount = 0;
+
+            container.innerHTML = state.cart.map(item => {
+                const p = state.products.find(prod => prod.id === item.id);
+                if(!p) return '';
+                subtotal += p.price * item.qty;
+                
+                // Add product online_discount values dynamically
+                const itemDisc = (p.online_discount || 0) * item.qty;
+                totalOnlineDiscount += itemDisc;
+
+                return `<div class="summary-row" style="font-size:0.9rem;"><span>${p.name} (x${item.qty})</span><span>₹${p.price * item.qty}</span></div>`;
+            }).join('');
+
+            const discountRow = document.getElementById('online-discount-row');
+            if (isOnline && totalOnlineDiscount > 0) {
+                discountRow.style.display = 'flex';
+                document.getElementById('checkout-online-discount').innerText = `-₹${totalOnlineDiscount}`;
+                document.getElementById('checkout-grandtotal').innerText = `₹${subtotal - totalOnlineDiscount}`;
+            } else {
+                discountRow.style.display = 'none';
+                document.getElementById('checkout-grandtotal').innerText = `₹${subtotal}`;
+            }
+        }
+
         function renderCheckoutPageView() {
             if(state.cart.length === 0) {
                 showToast("Cart is empty. Returning to home page.");
                 router.navigate('home');
                 return;
             }
-            const container = document.getElementById('checkout-breakdown-items');
-            let total = 0;
-            container.innerHTML = state.cart.map(item => {
-                const p = state.products.find(prod => prod.id === item.id);
-                if(!p) return '';
-                total += p.price * item.qty;
-                return `<div class="summary-row" style="font-size:0.9rem;"><span>${p.name} (x${item.qty})</span><span>₹${p.price * item.qty}</span></div>`;
-            }).join('');
+            // Restore clean layout forms visibility on page load
+            document.getElementById('checkout-form').style.display = 'block';
+            document.getElementById('checkout-pricing-card').style.display = 'block';
+            document.getElementById('qr-payment-window').style.display = 'none';
 
-            document.getElementById('checkout-grandtotal').innerText = `₹${total}`;
+            renderCheckoutBreakdown();
         }
 
-        async function processCheckoutOrder(e) {
+        async function handleFormSubmission(e) {
             e.preventDefault();
             
-            const total = state.cart.reduce((acc, c) => {
-                const p = state.products.find(x => x.id === c.id);
-                return acc + (p ? p.price * c.qty : 0);
-            }, 0);
+            const isOnline = document.getElementById('bill-payment').value === "ONLINE_QR";
+            let subtotal = 0;
+            let discount = 0;
+            
+            state.cart.forEach(item => {
+                const p = state.products.find(x => x.id === item.id);
+                if(p) {
+                    subtotal += p.price * item.qty;
+                    if(isOnline && p.online_discount) {
+                        discount += p.online_discount * item.qty;
+                    }
+                }
+            });
+
+            const finalTotal = subtotal - discount;
 
             const orderPayload = {
                 order_id: "",
@@ -997,21 +1059,60 @@
                     price: (state.products.find(x => x.id === item.id) || {}).price || 0
                 })),
                 quantity: state.cart.reduce((a, b) => a + b.qty, 0),
-                subtotal: total,
+                subtotal: subtotal,
                 shipping: 0,
-                discount: 0,
-                total: total,
-                payment_method: "COD",
-                payment_status: "Pending",
+                discount: discount,
+                total: finalTotal,
+                payment_method: isOnline ? "ONLINE_QR" : "COD",
+                payment_status: isOnline ? "Paid (Pending Verification)" : "Pending",
                 order_status: "Confirmed",
                 created_at: ""
             };
 
+            if (isOnline) {
+                // Store state payload temporarily, and launch instant QR screens with no-friction setups
+                state.active_checkout_payload = orderPayload;
+                launchQRCheckoutPopup(finalTotal);
+            } else {
+                submitFinalOrderAPI(orderPayload);
+            }
+        }
+
+        // ZERO FRICTION - NO UTR / TRANSACTION REFS SCREEN GENERATOR
+        function launchQRCheckoutPopup(amount) {
+            document.getElementById('checkout-form').style.display = 'none';
+            document.getElementById('checkout-pricing-card').style.display = 'none';
+            
+            const qrWindow = document.getElementById('qr-payment-window');
+            qrWindow.style.display = 'block';
+
+            document.getElementById('qr-price-tag').innerText = `₹${amount}`;
+
+            // Create valid Deep-Link specs format parameters
+            const upiUrl = `upi://pay?pa=${state.upi_id}&pn=Smart%20Kitchen&am=${amount}&cu=INR`;
+            
+            // Generate zero cost dynamically generated QR image using Google standard Charting API calls
+            const qrApiUrl = `https://chart.googleapis.com/chart?chs=220x220&cht=qr&chl=${encodeURIComponent(upiUrl)}`;
+
+            document.getElementById('upi-qr-image').src = qrApiUrl;
+            document.getElementById('direct-upi-deeplink-btn').href = upiUrl;
+        }
+
+        function submitOnlineQRConfirmAction() {
+            if(state.active_checkout_payload) {
+                const btn = document.getElementById('complete-online-btn');
+                btn.disabled = true;
+                btn.innerText = "Securing Order Connection...";
+                submitFinalOrderAPI(state.active_checkout_payload);
+            }
+        }
+
+        async function submitFinalOrderAPI(payload) {
             try {
                 const res = await fetch(`${BACKEND_URL}/order`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(orderPayload)
+                    body: JSON.stringify(payload)
                 });
 
                 if (res.ok) {
@@ -1019,12 +1120,26 @@
                     state.cart = [];
                     saveStateToLocalStorage("sk_cart", state.cart);
                     updateCoreUIBadges();
+                    
+                    // Cleanup dynamic settings payload buffers
+                    state.active_checkout_payload = null;
+
                     triggerOrderSuccessScreen(savedOrder);
                 } else {
-                    showToast("Failed to place order. Try again.");
+                    alert("Failed to confirm order. Try again.");
+                    restoreFailedCheckoutBtn();
                 }
             } catch (err) {
-                showToast("Connection failed to backend services.");
+                alert("Connection failed to backend service pipelines.");
+                restoreFailedCheckoutBtn();
+            }
+        }
+
+        function restoreFailedCheckoutBtn() {
+            const btn = document.getElementById('complete-online-btn');
+            if(btn) {
+                btn.disabled = false;
+                btn.innerText = "Complete & Confirm Order";
             }
         }
 
@@ -1035,7 +1150,7 @@
                 <div class="summary-row"><span>Order ID:</span><strong>${invoice.order_id}</strong></div>
                 <div class="summary-row"><span>Name:</span><span>${invoice.customer_name}</span></div>
                 <div class="summary-row"><span>Total Cost:</span><strong>₹${invoice.total}</strong></div>
-                <div class="summary-row"><span>Payment Mode:</span><span>${invoice.payment_method}</span></div>
+                <div class="summary-row"><span>Payment Mode:</span><span>${invoice.payment_method === 'ONLINE_QR' ? 'UPI Pay (Online)' : 'Cash on Delivery'}</span></div>
                 <div class="summary-row"><span>Status:</span><span>${invoice.order_status}</span></div>
             `;
         }
